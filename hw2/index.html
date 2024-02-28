@@ -1,7 +1,469 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Homework 2 index.html here
-	</body>
-</html>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    background-color: white;
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+  kbd {
+    color: #121212;
+  }
+</style>
+<title>CS 184 Mesh Edit</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+
+<script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$'], ['\\(', '\\)']]
+    }
+  };
+</script>
+<script id="MathJax-script" async
+  src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+</script>
+
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2018</h1>
+<h1 align="middle">Project 2: Mesh Edit</h1>
+<h2 align="middle">Stefan Pham and William Yau</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+<p>
+  This assignment focussed on geometric modeling using various methods including Bezier curves and surfaces and triangular meshes. The first part of the project focussed on using Bezier curves and surfaces to sample and calculate 'smooth' curves given a set of discrete points. The method of sampling these points was used with de Casteljau's algorithm showing how a few discrete points can generate a smooth surface. The latter part of the assignment focussed on triangle mesh, utilizing the halfedge data structure to navigate and manipulate the mesh. This involved building up the tools for manipulating the mesh topology with operations like edge flips and split (extra credit face split too). These tools, along with area-weighted normals, can be used to smooth over the mesh with upsampling methods.
+</p>
+
+<p>
+  Exploring Bezier curves and surfaces, and triangle meshes and upsampling methods, revealed how simple geometric principles can be applied to create complex and detailed models, as well as the interplay of computation and detail when generating and displaying these meshes. 
+</p>
+<br>
+
+
+<h2 align="middle">Section I: Bezier Curves and Surfaces</h2>
+
+<h3 align="middle">Part 1: Bezier Curves with 1D de Casteljau Subdivision</h3>
+
+
+<p>
+    De Casteljau's algorithm is used to calculate points along a Bezier curve, defined by the set of successive points that define the Bezier curve and the parameter t that marks the point along the curve.
+    The algorithm computes a linear interpolation or 'lerp' between the successive points to produce n - 1 points, given that there were n points originally.
+    Then, the algorithm is iteratively called on the results of the previous call's output and terminates when there's one point left; the parameter t is maintained through every recursive call. This point is the point along the Bezier curve at parameter t.
+</p>
+<p>
+  The implementation is straight forward where the inputs are the points, which are defined as Vector2D or Vector3D in a C vector, and the parameter t, a double. We create another function that will evaluate the lerps of successive points, taking an n sized vector of points as input and returning an n - 1 sized vector of points.
+  Each lerp can be calculated by (1 - t) * P[i] + t * P[i + 1], which is just a weighted average between the two points defined by t. The main function calculating the point will recursively call this helper function, using the results of the previous call as the input to the next until the return value is a vector of size 1, which is the desired point.
+</p>
+
+
+<p>
+    Below is a generated Bezier curve using six poinst to write the letter S using de Casteljau's algorithm.
+</p>
+<!-- Example of including a single figure -->
+<div align="middle">
+  <img src="images/BezierCurve.png" align="middle" width="50%">
+  <figcaption>Bezier Curve</figcaption>
+</div>
+<br>
+
+<!-- Example of including multiple figures -->
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="images/level0.png" align="middle" width="400px"/>
+        <figcaption>Level 0</figcaption>
+      </td>
+      <td>
+        <img src="images/level1.png" align="middle" width="400px"/>
+        <figcaption>Level 1</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr align="center">
+      <td>
+        <img src="images/level2.png" align="middle" width="400px"/>
+        <figcaption>Level 2</figcaption>
+      </td>
+      <td>
+        <img src="images/level3.png" align="middle" width="400px"/>
+        <figcaption>Level 3</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr align="center">
+      <td>
+        <img src="images/level4.png" align="middle" width="400px"/>
+        <figcaption>Level 4</figcaption>
+      </td>
+      <td>
+        <img src="images/level5.png" align="middle" width="400px"/>
+        <figcaption>Level 5</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+<br>
+
+
+<p>
+  The Bezier curve can change significantly with adjusting a point or two significantly. The t-value has also been adjusted.
+</p>  
+<div align="middle">
+  <img src="images/adjustedPoints.png" align="middle" width="50%">
+  <figcaption>Second and Third points moved with adjusted t value.</figcaption>
+</div>
+<br>
+
+
+
+<h3 align="middle">Part 2: Bezier Surfaces with Separable 1D de Casteljau</h3>
+<p>
+    De Casteljau's algorithm extends to Bezier surfaces by receiving an N x M array of points as input and calculating points along a series of Bezier curves using the algorithm described in Part 1 (N Bezier curves using M points each); each of these uses the same parameter t = u.
+    Then, using these N points from the N Bezier curves, the point along the Bezier curve produced from these N points at parameter t = v is returned, giving a point on the Bezier surface.
+</p>
+
+<p>
+  Our implementation follows this process by calling our 1D de Casteljau function N times over our input, using the M points in the ith row as inputs. The outputs (Bezier points) is stored in a vector. The 1D de Casteljau function is called again on these resulting points, returning our final value.
+</p>
+<br>
+
+<p>
+    Below is a resulting Bezier surface from our implementation:
+</p>
+<div align="middle">
+  <img src="images/bezierSurface.png" align="middle" width="50%">
+  <figcaption>bez/teapot.bez</figcaption>
+</div>
+<br>
+
+
+<h2 align="middle">Section II: Triangle Meshes and Half-Edge Data Structure</h2>
+
+<h3 align="middle">Part 3: Area-Weighted Vertex Normals</h3>
+
+<p>
+    We define a vertex normal to the weighted sum of the neigbouring triangles' norms, where the weights is the area divided by the total area of the triangles.
+    We implemented the area-weighted vertex normals by initializing two variables, the total_area and norm, which will keep track of the total area of the neighbors and the cumulative vector sum of the normal of the faces of the neighbors respectively.
+    Then, we iterate through every triangle using the next() and twin() methods of halfedges. With every iteration, we obtained the points of the triangle (A, B, and C) and take the cross product of their differences ((A - B) x (B - C)). The norm2 of this value represents the area of this triangle doubled.
+    We add this area to total_area and add the norm of the face (obtained with halfedge->face()->normal()) multipled with that area. After iterating through every neighbor, we divide the elements of norm with the total area (the 2's from the areas will cancel out accordingly) yielding the normal of the vertex.
+</p>
+<br>
+
+<p>
+    Below is an application of the area-weighted vertex normals with Phong shading (compared with the flat shading).
+</p>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="images/flatShading.png" align="middle" width="400px"/>
+        <figcaption>Flat Shading</figcaption>
+      </td>
+      <td>
+        <img src="images/phongShading.png" align="middle" width="400px"/>
+        <figcaption>Phong Shading</figcaption>
+      </td>
+    </tr>
+    <br>
+  </table>
+</div>
+<br>
+
+
+<h3 align="middle">Part 4: Edge Flip</h3>
+
+<p>
+  We implemented the edge flip operation by first listing out all of the elements including the halfedges, edges, vertices, and faces. Then we defined each of the vertices and edges (barring the given edge) in terms of halfedges from outside of the two triangle system (twins of the interior half edges).
+  The faces were and given edge were defined in terms of the half edges of the given edge. The only halfedges subject to change are those that appear in the diagram below where we will remark each halfedge by an ordered pair of vertices (CA, AB, BC being halfedges of one triangle, CD, DB, CB being the other's).
+  With the before and after of the flip transformation, the halfedges for the 'outer' halfedges still reference the same edge (the halfedge iterator for CA still points at CA) except for BC and CB, which now assume the properties of AD and DA respectively.
+</p>
+<div align="middle">
+  <img src="images/flipDiagram.png" align="middle" width="75%">
+  <figcaption>Edge Flip with Halfedges</figcaption>
+</div>
+<br>
+
+<p>
+  Below is the results of applying edge flips on the teapot mesh.
+</p>
+
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="images/noFlip.png" align="middle" width="400px"/>
+        <figcaption>No Flips</figcaption>
+      </td>
+      <td>
+        <img src="images/oneFlip.png" align="middle" width="400px"/>
+        <figcaption>One Flip</figcaption>
+      </td>
+    </tr>
+    <br>
+  </table>
+</div>
+<div align="middle">
+  <img src="images/manyFlips.png" align="middle" width="400px">
+  <figcaption>Flipped off the Deep End</figcaption>
+</div>
+<br>
+
+<p>
+    The debugging process was mostly due to being unorganized in mapping out the pointers. The program would often not run and just crash immediately due to inconsistencies in the mesh and the twin pairs not being in pairs and next pointing outside the triangle.
+    All errors were eliminated when writing out the mapping in exhaustive detail, so no 'human' errors in implementation persisted.
+</p>
+<br>
+
+
+<h3 align="middle">Part 5: Edge Split</h3>
+<p>
+  We implemented the edge split operation by first listing out all of the elements including the halfedges, edges, vertices, and faces as we did with the flip operation. Then we defined each of the edges (barring the given edge) in terms of halfedges from outside of the two triangle system (twins of the interior half edges).
+  Then, we add new elements that will be created by the split, which include 3 faces, 3 edges, 1 vertex, and 6 halfedges. Then, we proceed with assigning all the faces, vertices, and edges with the halfedges that have M as one of their vertices (AM, MA, etc.). The halfedges are then directly assigned the values described by the diagram below.
+  Note, that the original face and given edge are assigned to the top left face and north edge (both described by MB). There was no debugging process for this part as the code ran successfully the first time with no errors found when appplying splits and flips to a mesh.
+</p>
+<div align="middle">
+  <img src="images/edgeSplitDiagram.png" align="middle" width="75%">
+  <figcaption>Edge Split with Halfedges</figcaption>
+</div>
+<br>
+
+<p>
+  Below is the results of applying edge splits and flips on the teapot mesh.
+</p>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="images/noSplit.png" align="middle" width="400px"/>
+        <figcaption>No Splits</figcaption>
+      </td>
+      <td>
+        <img src="images/oneSplit.png" align="middle" width="400px"/>
+        <figcaption>One Split</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="images/manySplits.png" align="middle" width="400px"/>
+        <figcaption>Many Splits</figcaption>
+      </td>
+      <td>
+        <img src="images/manySplitsFlips.png" align="middle" width="400px"/>
+        <figcaption>Many Splits and Flips</figcaption>
+      </td>
+    </tr>
+    <br>
+  </table>
+</div>
+<br>
+
+<p>
+  Observe that splits do not change the overall 'shape' of the mesh while flips can change the 'shape' of the mesh. This can be seen with the variation in shading in the last image where the earlier images maintained the same shading scheme.
+</p>
+<p>
+    YOUR RESPONSE GOES HERE
+</p>
+<br>
+
+
+<h3 align="middle">Part 6: Loop Subdivision for Mesh Upsampling</h3>
+
+<p>
+    For this operation, we first iterate every vertex in the mesh to calculate the new positions of the vertices and store them in the newPosition instance value. We calculate this position by iterating through each of the vertex's neighbours and taking the sum of the position vectors; we also count the number of neighbouring vertices (the degree of the vertex) in this process. Then we apply the formula newPosition = (1 - n * u) * original_position + u * sum_of_neighbours where n is the degree of the vertex and u is 3 / (8 * n) unless n = 3, then u = 3/16. We also set each vertex's isNew value to false.
+    Next, we iterate through every edge to calculate the newPosition of the midpoints of each edge with the formula (3 * (B + C) + A + D) / 8 where A, B, C, and D are the position vectors of the points in the diagram below; the blue edge is the current edge in this iterative process. We also count the number of original edges and set their isNew value to False.
+</p>
+<div align="middle">
+  <img src="images/Edge.png" align="middle" width="75%">
+  <figcaption>Calculating New Position of Midpoints in Every Edge</figcaption>
+</div>
+<p>
+  Then, we iterate through each of the original edges by simpling incrementing the edges from the beginning edge to the number of original edges and call split on each of those values. The vertex that's returned is the midpoint, and we assign this vertex's newPosition to the same newPosition as the edge used as the input. Note that in the splitting function, we assign the newly created midpoint's isNew value to true and the edges connecting from A to the midpoint and D to the midpoint as isNew as well. The edges connecting C and the midpoint and B and the midpoint should have false for its isNew value.
+  Subsequently, we iterate through every vertex and assign its position value to its newPosition; we saved this till now as the calculations for the new positions depended on the original positions and neighbors, which couldn't be altered until this point.
+  Lastly, we iterate through every edge and flip the ones that have its isNew value as true and connect a vertex with an isNew value of true and a vertex with an isNew value as false.
+</p>
+
+<br>
+
+<p>
+    Below are some images of the teapot mesh undergoing the loop division process.
+</p>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="images/Iter0.png" align="middle" width="400px"/>
+        <figcaption>0 Iterations of 4-1</figcaption>
+      </td>
+      <td>
+        <img src="images/Iter1.png" align="middle" width="400px"/>
+        <figcaption>1 Iteration of 4-1</figcaption>
+      </td>
+    </tr>
+    <br>
+  </table>
+</div>
+<div align="middle">
+  <img src="images/Iter2.png" align="middle" width="400px">
+  <figcaption>2 Iterations of 4-1</figcaption>
+</div>
+<p>
+  Note while the mesh overall gets smoother, some details are lost if the edges are particularly sharp, as the sharp bit we have here is suppressed and smooth and differs significantly from the original mesh. We can reduce this effect of over smoothing into nothing by creating splits along the edges of the sharp point. This effect can be seen below and the subsequent images of the cube.
+</p>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="images/sIter0.png" align="middle" width="400px"/>
+        <figcaption>0 Iterations of 4-1</figcaption>
+      </td>
+      <td>
+        <img src="images/sIter1.png" align="middle" width="400px"/>
+        <figcaption>1 Iteration of 4-1</figcaption>
+      </td>
+    </tr>
+    <br>
+  </table>
+</div>
+<div align="middle">
+  <img src="images/sIter2.png" align="middle" width="400px">
+  <figcaption>2 Iterations of 4-1</figcaption>
+</div>
+
+<p>
+    Below are the meshes of the cube. The cube on the left have no pre-splits while the cube on the right is split along each diagonal edge on a face to ensure every face is equal in the number of edges, all vertices are of equal degree.
+</p>
+<div align="middle">
+  <img src="images/cube0.png" align="middle" width="400px">
+  <figcaption>Cube: 0 Loop Divisions</figcaption>
+</div>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="images/acube1.png" align="middle" width="400px"/>
+        <figcaption>Cube: 1 Loop Division</figcaption>
+      </td>
+      <td>
+        <img src="images/cube1.png" align="middle" width="400px"/>
+        <figcaption>Cube with Pre-splits: 1 Loop Division</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="images/acube2.png" align="middle" width="400px"/>
+        <figcaption>Cube: 2 Loop Divisions</figcaption>
+      </td>
+      <td>
+        <img src="images/cube2.png" align="middle" width="400px"/>
+        <figcaption>Cube with Pre-splits: 2 Loop Divisions</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="images/acube4.png" align="middle" width="400px"/>
+        <figcaption>Cube: 4 Loop Divisions</figcaption>
+      </td>
+      <td>
+        <img src="images/cube4.png" align="middle" width="400px"/>
+        <figcaption>Cube with Pre-splits: 4 Loop Divisions</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="images/angledACube.png" align="middle" width="400px"/>
+        <figcaption>Cube: 4 Loop Divisions (different angle)</figcaption>
+      </td>
+      <td>
+        <img src="images/angledCube.png" align="middle" width="400px"/>
+        <figcaption>Cube with Pre-splits: 4 Loop Divisions (different angle)</figcaption>
+      </td>
+    </tr>
+    <br>
+  </table>
+</div>
+
+<p>
+  The reason why this asymmetry occurs on the cube on the left is because of the neighbouring vertices. Every vertex of the cube neighbours at least 3 other vertices (at the other corners of the cube).
+  Some cubes have neighbours that are also connected diagonally across a side of the cube. These vertices are further from a given vertex than the default 3 at the other corners of the cube, and therefore, the weighted average using these vertices is further from the original position if it has more of these diagonal neighbours.
+  Furthermore, if there are only 3 vertices (being the corner ones), then the value of the weight attached to the original position for calculating the new position will be 7/16 rather than 5/8, meaning the original position's influence will persist less in the case the degree is 3.
+  With this in mind, having the number of diagonals (up to 3), and the piecewise difference in the case the degree is 3, will cause asymmetric variations in how much the original positions of the cube will change by.
+  To reconcile this difference, we can guarantee that each of the vertices have the same number of neighbours and 'types of neighbours' (3 corner neighbours and 3 diagonal numbers). This is achieved by splitting each of the diagonal edges across each side of the cube. This results in a die-like shape with rounded edges and corners.
+</p>
+<br>
+
+<p>
+  In addition to the 4-1 Subdivision operation for upsampling of meshes, we also implemented root-3 Subdivision. root-3 Subdivision involves dividing each triangular face of a mesh by creating a vertex at its centroid and creating edges from each vertex of the triangle to the centroid. These will be the final positions for these new vertices.
+</p>
+<div align="middle">
+  <img src="images/faceSplitDiagram.png" align="middle" width="400px">
+  <figcaption>Cube: 0 Loop Divisions</figcaption>
+</div>
+<p>
+  The original vertices will be updated with the following formula newPosition = (1 - a) * original_position + (a / n) * neighbors_vector_sum where a = (4 - 2 * cos(2 * pi / n)) / 9. All the original edges will also be flipped.
+  For our actual implementation, we first iterate through all of the original vertices and calculate the new position by iterating through each of the vertex's neighbours; we store this in the newPosition value in newPosition variable. Then, we iterate through every edge and set its isNew value to false.
+  Next, we iterate through each of the original faces (not including newly created ones) and call our helper function splitFace, which takes in a face and performs the actions in the diagram above,  sets the newPosition of the centroids to its actual position, and sets the isNew value of the newly created edges to true. Then, we iterate through every vertex and set its position to its newPosition value. Lastly, we iterate through every edge and flip the edge if its isNew value is false.
+</p>
+<div align="middle">
+  <img src="images/original.png" align="middle" width="400px">
+  <figcaption>Cube: 0 Loop Divisions</figcaption>
+</div>
+<div align="middle">
+  <table style="width:100%">
+    <tr align="center">
+      <td>
+        <img src="images/rootThree1.png" align="middle" width="400px"/>
+        <figcaption>Root-3 Subdivision: 1 Division</figcaption>
+      </td>
+      <td>
+        <img src="images/fourOne1.png" align="middle" width="400px"/>
+        <figcaption>4-1 Subdivision: 1 Division</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="images/rootThree2.png" align="middle" width="400px"/>
+        <figcaption>Root-3 Subdivision: 2 Divisions</figcaption>
+      </td>
+      <td>
+        <img src="images/fourOne2.png" align="middle" width="400px"/>
+        <figcaption>4-1 Subdivision: 2 Divisions</figcaption>
+      </td>
+    </tr>
+    <tr align="center">
+      <td>
+        <img src="images/rootThree4.png" align="middle" width="400px"/>
+        <figcaption>Root-3 Subdivision: 4 Divisions</figcaption>
+      </td>
+      <td>
+        <img src="images/fourOne4.png" align="middle" width="400px"/>
+        <figcaption>4-1 Subdivision: 4 Divisions</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+<br>
+
+<p>
+  We see that both methods converge the mesh to the same 'final' destination ad infinitum, but the 4-1 method converges faster. In fact, for every two divisions, the 4-1 Subdivision algorithm will have 16 triangles inside one of the triangular faces while the Root-3 Subdivision algorithm will have 9. So, 18 iterations of 4-1 has the same effect as 32 iterations of Root-3 (9 iterations of 4-1 will have the same number of triangles as 16 iterations of Root-3, but the triangles will be in different positions, almost flipped).
+</p>
+
+
