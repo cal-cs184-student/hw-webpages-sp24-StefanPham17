@@ -1,7 +1,779 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Homework 4 index.html here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+  <style>
+    body {
+      background-color: #404040;
+      background-color: white;
+      padding: 100px;
+      width: 1000px;
+      margin: auto;
+      text-align: left;
+      font-weight: 300;
+      font-family: 'Open Sans', sans-serif;
+      color: #121212;
+      /* cursor: url(https://rsha256.github.io/teapot-clear32.png), default!important;
+      cursor: url(https://rsha256.github.io/teapot-clear32.png), pointer!important; */
+      cursor: url(https://rsha256.github.io/dragon-clear32.png), default!important;
+      cursor: url(https://rsha256.github.io/dragon-clear32.png), pointer!important;
+      /* cursor: url(https://rsha256.github.io/cloth-clear-32.png), default!important;
+      cursor: url(https://rsha256.github.io/cloth-clear-32.png), pointer!important; */
+    }
+    h1, h2, h3, h4 {
+      font-family: 'Source Sans Pro', sans-serif;
+    }
+    kbd {
+      color: #121212;
+    }
+    blockquote {
+      color: #888;
+      border: 2px solid #333;
+      padding: 10px;
+      background-color: #ccc;
+    }
+
+    table.custom-tbl {
+      border: 1px solid;
+    }
+
+    table.custom-tbl th {
+      border: 1px solid;
+      background-color: rgb(99, 209, 209);
+    }
+
+    table.custom-tbl td {
+      border: 1px solid;
+      background-color: #f1e686a8;
+    }
+  </style>
+
+  <title>CS 184 Mesh Editor</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <!-- Not using below due to lacking bold fontfaces -->
+  <!-- <link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro|Source+Sans+Pro:400,700" rel="stylesheet"> -->
+  <link href="https://fonts.googleapis.com/css?family=Roboto+Mono|Roboto+Slab|Roboto:300,400,500,700" rel="stylesheet" />
+
+  <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    };
+  </script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+  </script>  
+</head>
+
+<body>
+
+  <h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2024</h1>
+  <h1 align="middle">Project 4: Cloth Simulator</h1>
+  <h2 align="middle">Stefan Pham and William Yau</h2>
+
+  <br><br>
+
+  <div>
+    <h2 align="middle">Overview</h2>
+    <p>In this project, we explore the physical properties of a piece of cloth and its interactions with other objects. The cloth is modelled as an array of point masses connected with ideal springs of three types: structural, shearing, and bending. We apply forces to this cloth including gravity and wind, and can manipulate the properties of the cloth including its density, spring constants, and 'friction' with the 'air'.
+       Furthermore, we observe how it interacts with other objects such as a sphere, a plane, and itself (such that it doesn't intersect itself). Lastly, we observe different shadings on our cloth and objects using shader programs. We implemented diffuse shading, Blinn-Phong shading, texture mapping, displacement and bump mapping, and environment-mapped reflections. In addition, we've also implemented toon shading to give our renderings a cartoonish feel.
+    </p>
+  </div>
+
+  <a href="https://cs184.eecs.berkeley.edu/sp23/docs/proj4-part-1">
+  <h2 align="middle">Part 1: Masses and springs</h2>
+  </a>
+    <p>
+      The cloth is constructed from an array of point masses connected by springs. These springs consist of the structural, shearing, and bending springs.
+      Structural springs create a grid-like appearance, having point masses connect with their direct neighbors in the array, creating connectivity of the cloth.
+      Shearing springs exist on the diagonals, being formed between diagonal neighbors of point masses, creating resistance to shearing effects.
+      Bending springs exist between point masses and their second neighbor (skips over direct neighbors in the array). This is to provide resistance from bending over itself.
+    </p>
+    <p>
+      Below are screenshots taken from <i>scene/pinned2.json</i>, which display the cloth consisting of the point masses and springs.
+    </p>
+
+    <div align="middle">
+      <table style="width:100%">
+        <tr align="center">
+          <td>
+            <img src="images/WireFrameCloseUp.png" align="middle" width="300vw" />
+            <figcaption>Zoomed in wireframe</figcaption>
+          </td>
+          <td>
+            <img src="images/WireFrameFarOut.png" align="middle" width="300vw" />
+            <figcaption>Zoomed out wireframe</figcaption>
+          </td>
+          <td>
+            <img src="images/WireFrameHanging.png" align="middle" width="300vw" />
+            <figcaption>Wireframe under effects of gravity</figcaption>
+          </td>
+          <td>
+        </tr>
+      </table>
+    </div>
+
+
+    <p>
+      Below is the same wireframe displaying the different springs at work.
+    </p>
+
+    <div align="middle">
+      <table style="width:100%">
+        <tr align="center">
+          <td>
+            <img src="images/WireFrameCloseUpNoShear.png" align="middle" width="300vw" />
+            <figcaption>No shearing constraints, zoomed-in</figcaption>
+          </td>
+          <td>
+            <img src="images/WireFrameCloseUpShear.png" align="middle" width="300vw" />
+            <figcaption>Only shearing constraints, zoomed-in</figcaption>
+          </td>
+          <td>
+            <img src="images/WireFrameCloseUp.png" align="middle" width="300vw" />
+            <figcaption>All constraints, zoomed-in</figcaption>
+          </td>
+        </tr>
+        <tr align="center">
+          <td>
+            <img src="images/WireFrameFarOutNoShear.png" align="middle" width="300vw" />
+            <figcaption>No shearing constraints, zoomed-out</figcaption>
+          </td>
+          <td>
+            <img src="images/WireFrameFarOutShear.png" align="middle" width="300vw" />
+            <figcaption>Only shearing constraints, zoomed-out</figcaption>
+          </td>
+          <td>
+            <img src="images/WireFrameFarOut.png" align="middle" width="300vw" />
+            <figcaption>All constraints, zoomed-out</figcaption>
+          </td>
+        </tr>
+        <tr align="center">
+          <td>
+            <img src="images/WireFrameHangingNoShear.png" align="middle" width="300vw" />
+            <figcaption>No shearing constraints, hanging</figcaption>
+          </td>
+          <td>
+            <img src="images/WireFrameHangingShear.png" align="middle" width="300vw" />
+            <figcaption>Only shearing constraints, hanging</figcaption>
+          </td>
+          <td>
+            <img src="images/WireFrameHanging.png" align="middle" width="300vw" />
+            <figcaption>All constraints, hanging</figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+
+
+  <a href="https://cs184.eecs.berkeley.edu/sp23/docs/proj4-part-2">
+
+
+  <h2 align="middle">Part 2: Simulation via numerical integration</h2>
+</a>
+  <p>
+    The cloth will experience both external and internal forces, the former consisting of gravity and wind forces, and the latter being the ideal
+    springs which constitute cloth. These will promote an acceleration of the cloth's point masses, causing motion. We calculate this motion via Verlet Integration applied
+    to the point masses' positions.
+  </p>
+    <blockquote><b>
+      Experiment with some the parameters in the simulation. 
+      To do so, pause the simulation at the start with <kbd>P</kbd>, modify the values of interest, and then resume by pressing <kbd>P</kbd> again. 
+      You can also restart the simulation at any time from the cloth's starting position by pressing <kbd>R</kbd>.
+      <br />
+      <small>
+      Describe the effects of changing the spring constant <code>ks</code>; how does the cloth behave from start to rest with a very low <code>ks</code>? 
+      A high <code>ks</code>?
+      </small>
+    </b></blockquote>
+
+    <b>
+      Anatomy of a Fall
+    </b>
+
+    <p>
+      In <i>scene/pinned2.json</i>, we can observe how varying the magnitude of spring constants, density, and damping affects how the cloth falls into the hanging position.
+    </p>
+
+    <p>
+      When varying the spring constants of the springs, ks, we observe with higher spring constant values the cloth being more 'stiff'. The cloth falls more 'smoothly' without crumpling in on itself and every row of the cloth falls more uniformly. 
+      At rest, the cloth has less of a fold in between the pins. With lower spring constant values, the cloth becomes 'loose' with more chaotic movement in the fall and rippling effects such as it seemingly bouncing back in reaction to its neighbors.
+      The cloth falls with more variance in its rows. The final resting place has a larger fold between the pinned masses.
+    </p>
+
+    <p>
+      When varyign the density of the cloth, we observe an opposite effect that the springs had. The higher density values led to the effects shown by having a lower spring constant and vice versa though the extremes of the 
+      density yielded less chaos than the extremes of the spring constant. Physically, we can attribute this inverse effect due to the balance of forces being applied to the cloth with the balance of gravity and spring forces determining the cloth's behavior.
+      Though, gravity is only acting in the y direction whereas springs act in all three directions, which explains the more chaotic behavior in the extrema of spring constant values.
+    </p>
+
+    <p>
+      When varying the damping effect or the friction, we notice with higher damping, the cloth will fall much slowly as it is resistant to the movement, this also leads to a more uniform fall amongst its rows, being more smooth.
+      With lower damping values, the cloth's fall becomes more chaotic with higher variance in its points in each row, it also falls much quicker. Note that the time it takes for the cloth to reach its final hanging form is longer with higher damping values, but is 
+      also long with extremely small damping values as it still maintains more kinetic energy for longing, tending to oscillate back and forth much longer.
+    </p>
+    
+    <p>Below are pictures of the varying final positions of the cloth dependent on the spring constant and density. For each of the following, if the parameter is not stated, assume for it to have the default parameters of ks = 5000 N/m, density = 15 g/cm^2 and damping = 20%.
+        The differences described above can be seen with the dip in the area between the pins as well as the 'chaos' or variance in the cloth.
+        Also note, the final position while varying dampness is homogenous as it only affects the cloth while its in motion.
+    </p>
+  
+    <div align="middle">
+      <table style="width:100%">
+        <tr align="center">
+          <td>
+            <img src="images/FallDensity1.5.png" align="middle" width="450vw" />
+            <figcaption>Density = 1.5 g/cm^2</figcaption>
+          </td>
+          <td>
+            <img src="images/FallKs5.png" align="middle" width="450vw" />
+            <figcaption>Ks = 5 N/m</figcaption>
+          </td>
+        </tr>
+        <tr align="center">
+          <td>
+            <img src="images/FallKs5000.png" align="middle" width="450vw" />
+            <figcaption>Density = 15 g/cm^2 (default)</figcaption>
+          </td>
+          <td>
+            <img src="images/FallKs50.png" align="middle" width="450vw" />
+            <figcaption>Ks = 50 N/m</figcaption>
+          </td>
+        </tr>
+        <tr align="center">
+          <td>
+            <img src="images/FallDensity150.png" align="middle" width="450vw" />
+            <figcaption>Density = 150 g/cm^2</figcaption>
+          </td>
+          <td>
+            <img src="images/FallKs500.png" align="middle" width="450vw" />
+            <figcaption>Ks = 500 N/m</figcaption>
+          </td>
+        </tr>
+        <tr align="center">
+          <td>
+            <img src="images/FallDensity1500.png" align="middle" width="450vw" />
+            <figcaption>Density = 1500 g/cm^2</figcaption>
+          </td>
+          <td>
+            <img src="images/FallKs5000.png" align="middle" width="450vw" />
+            <figcaption>Ks = 5000 N/m (default)</figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
+  
+    <p>
+      With damping, we observe differences in speed of the fall, each of the following were taken 5 seconds in the cloth's descent. The damping of 0% shows the cloth swinging back and forth
+      over the final resting place. The 20% damping or default damping is already in its rest position. The 80% damping is still in the process of reaching the rest position.
+    </p>
+
+    <div align="middle">
+      <table style="width:100%">
+        <tr align="center">
+          <td>
+            <img src="images/Damping0.png" align="middle" width="300vw" />
+            <figcaption>Damping = 0%</figcaption>
+          </td>
+          <td>
+            <img src="images/Damping20.png" align="middle" width="300vw" />
+            <figcaption>Damping = 20% (default)</figcaption>
+          </td>
+          <td>
+            <img src="images/Damping80.png" align="middle" width="300vw" />
+            <figcaption>Damping = 80%</figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+
+    <p>
+      Below is the shaded cloth from <i>scene/pinned4.json</i> in its final resting state with default parameters.
+    </p>
+
+    <div align="middle">
+      <img src="images/Part2_Resting.png" align="middle" width="100%" />
+    </div>
+
+
+
+  <a href="https://cs184.eecs.berkeley.edu/sp23/docs/proj4-part-3">
+  <h2 align="middle">Part 3: Handling collisions with other objects</h2>
+  </a>
+    <p>
+      The goal of this section is to have our cloth unable to intersect these objects and instead rest or slide past them as expected in reality.
+    </p>
+    <p>
+      Below are screenshots of the shaded cloth interacting with a sphere (resting on top of it). The final resting state is dependent on the spring constant as observed below.
+    </p>
+    
+    <div align="middle">
+      <table style="width:100%">
+        <tr align="center">
+          <td>
+            <img src="images/Ks500.png" align="middle" width="300vw" />
+            <figcaption>$\text{ks} = 500$</figcaption>
+          </td>
+          <td>
+            <img src="images/Ks5K.png" align="middle" width="300vw" />
+            <figcaption>Initial configuration ($\text{ks} = 5,000$)</figcaption>
+          </td>
+          <td>
+            <img src="images/Ks50K.png" align="middle" width="300vw" />
+            <figcaption>$\text{ks} = 50,000$</figcaption>
+          </td>
+          <td>
+        </tr>
+      </table>
+    </div>
+
+    <p>
+      As the spring constant value decreases, the cloth is better suited to wrapping around the sphere more, and to do this well, it leads to more 'folds' about the sphere.
+      As seen in the ks = 500 case where 8 of these 'folds' can be seen as opposed to the ks = 50,000 case where there are only 3 of these 'folds' visible from this angle.
+      Furthermore, with the higher spring constant values, the cloth is more aired out (wider in appearance) whereas the smaller spring constants yield something tighter.
+    </p>
+
+
+    <p>
+      Below is our cloth's interactions with a plane, the first image showing that the cloth will rest on top of the plane, and the second image showing that the cloth has not
+      intersected the plane and has nothing of the cloth shown on the under side of the plane.
+    </p>
+
+    <div align="middle">
+      <table style="width:100%">
+        <tr align="center">
+          <td>
+            <img src="images/PlaneAbove.png" align="middle" width="100%" />
+            <figcaption>Above the plane</figcaption>
+          </td>
+          <td>
+            <img src="images/PlaneBelow.png" align="middle" width="100%" />
+            <figcaption>Below the plane</figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+
+
+
+  <a href="https://cs184.eecs.berkeley.edu/sp23/docs/proj4-part-4">
+  <h2 align="middle">Part 4: Handling self-collisions</h2>
+  </a>
+
+    <p>
+      With this section, we strive to prevent our cloth from intersecting with itself. Below, we have a cloth in a 'standing' position to then fall and collapse on itself.
+      The six screenshots show this fall in 'motion'.
+    </p>
+    
+    <div align="middle">
+      <table style="width:100%">
+        <tr align="center">
+          <td>
+            <img src="images/Fall0.png" align="middle" width="300vw" />
+            <figcaption>Self collision: State 0</figcaption>
+          </td>
+          <td>
+            <img src="images/Fall1.png" align="middle" width="300vw" />
+            <figcaption>Self collision: State 1</figcaption>
+          </td>
+          <td>
+            <img src="images/Fall2.png" align="middle" width="300vw" />
+            <figcaption>Self collision: State 2</figcaption>
+          </td>
+          <td>
+        </tr>
+        <tr align="center">
+          <td>
+            <img src="images/Fall3.png" align="middle" width="300vw" />
+            <figcaption>Self collision: State 3</figcaption>
+          </td>
+          <td>
+            <img src="images/Fall4.png" align="middle" width="300vw" />
+            <figcaption>Self collision: State 4</figcaption>
+          </td>
+          <td>
+            <img src="images/Fall5.png" align="middle" width="300vw" />
+            <figcaption>Self collision: State 5</figcaption>
+          </td>
+          <td>
+        </tr>
+      </table>
+    </div>
+
+
+    <p>
+      The screenshots below show how our cloth's fall differs when varying the spring constants. With lower spring constant values, we observe that the cloth folds onto itself more easily, and the
+      crumpling affect as it falls is more localized to the bottom. As the spring constants increase, the crumpling affect spreads further up. Also, the number of folds in the crumpling increases with
+      the spring constant decreasing. The 'final' resting state of the cloth is less spread our and more chaotic pool of cloth with lower spring constant values as opposed to the higher spring constant values
+      where it is more spread out and 'calm'.
+    </p>
+
+    <div align="middle">
+      <table style="width:100%">
+        <tr align="center">
+          <td>
+            <img src="images/Spring50_0.png" align="middle" width="300vw" />
+            <figcaption>Ks = 50 N/m: State 0</figcaption>
+          </td>
+          <td>
+            <img src="images/Spring50_1.png" align="middle" width="300vw" />
+            <figcaption>Ks = 50 N/m: State 1</figcaption>
+          </td>
+          <td>
+            <img src="images/Spring50_2.png" align="middle" width="300vw" />
+            <figcaption>Ks = 50 N/m: State 2</figcaption>
+          </td>
+        </tr>
+        <tr align="center">
+          <td>
+            <img src="images/Spring500_0.png" align="middle" width="300vw" />
+            <figcaption>Ks = 500 N/m: State 0</figcaption>
+          </td>
+          <td>
+            <img src="images/Spring500_1.png" align="middle" width="300vw" />
+            <figcaption>Ks = 500 N/m: State 1</figcaption>
+          </td>
+          <td>
+            <img src="images/Spring500_2.png" align="middle" width="300vw" />
+            <figcaption>Ks = 500 N/m: State 2</figcaption>
+          </td>
+        </tr>
+        <tr align="center">
+          <td>
+            <img src="images/Spring50K_0.png" align="middle" width="300vw" />
+            <figcaption>Ks = 50,000 N/m: State 0</figcaption>
+          </td>
+          <td>
+            <img src="images/Spring50K_1.png" align="middle" width="300vw" />
+            <figcaption>Ks = 50,000 N/m: State 1</figcaption>
+          </td>
+          <td>
+            <img src="images/Spring50K_2.png" align="middle" width="300vw" />
+            <figcaption>Ks = 50,000 N/m: State 2</figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <p>
+      To mime what was stated earlier, the effects of varying the density seemingly have the inverse affects of varying the spring constants. With lower densities, we observe the effects of the fall as if the spring constants were larger and vice versa.
+    </p>
+
+    <div align="middle">
+      <table style="width:100%">
+        <tr align="center">
+          <td>
+            <img src="images/Density1.5_0.png" align="middle" width="300vw" />
+            <figcaption>Density = 1.5 g/cm^2: State 0</figcaption>
+          </td>
+          <td>
+            <img src="images/Density1.5_1.png" align="middle" width="300vw" />
+            <figcaption>Density = 1.5 g/cm^2: State 1</figcaption>
+          </td>
+          <td>
+            <img src="images/Density1.5_2.png" align="middle" width="300vw" />
+            <figcaption>Density = 1.5 g/cm^2: State 2</figcaption>
+          </td>
+        </tr>
+        <tr align="center">
+          <td>
+            <img src="images/Density150_0.png" align="middle" width="300vw" />
+            <figcaption>Density = 150 g/cm^2: State 0</figcaption>
+          </td>
+          <td>
+            <img src="images/Density150_1.png" align="middle" width="300vw" />
+            <figcaption>Density = 150 g/cm^2: State 1</figcaption>
+          </td>
+          <td>
+            <img src="images/Density150_2.png" align="middle" width="300vw" />
+            <figcaption>Density = 150 g/cm^2: State 2</figcaption>
+          </td>
+        </tr>
+        <tr align="center">
+          <td>
+            <img src="images/Density1500_0.png" align="middle" width="300vw" />
+            <figcaption>Density = 1,500 g/cm^2: State 0</figcaption>
+          </td>
+          <td>
+            <img src="images/Density1500_1.png" align="middle" width="300vw" />
+            <figcaption>Density = 1,500 g/cm^2: State 1</figcaption>
+          </td>
+          <td>
+            <img src="images/Density1500_2.png" align="middle" width="300vw" />
+            <figcaption>Density = 1,500 g/cm^2: State 2</figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+
+
+  <a href="https://cs184.eecs.berkeley.edu/sp23/docs/proj4-part-5">
+  <h2 align="middle">Part 5: Cloth Sim</h2>
+  </a>
+
+    <blockquote><b>
+    Explain in your own words what is a shader program and how vertex and fragment shaders work together to create lighting and material effects.
+    </b></blockquote>
+
+    <p>
+      Shader programs run in parallel on a GPU, taking in inputs drawn from our 3D scene and outputs a color or 4D vector, which 'reflects' the lighting of the scene onto our screens.
+      Vertex shaders take in the 3D environment, consisting of all the vertices and applies transformations to them to update their values, effectively changing the geometry of our scene for our viewing purposes.
+      Fragment shaders look at the new geometry produced from our vertex shaders and uses that to compute a color for the pixel that describes the area of the scene we're observing.
+      Essentially, the vertex shaders prepare the scene by establishing the geometry, determining which and how each part of the scene interacts with lights, and the fragment shader takes this data to determine how the light and material interact for each pixel.
+    </p>
+
+
+    <blockquote><b>
+    Explain the Blinn-Phong shading model in your own words. 
+    Show a screenshot of your Blinn-Phong shader outputting only the ambient component, a screen shot only outputting the diffuse component, a screen shot only outputting the specular component, and one using the entire Blinn-Phong model.
+    </b></blockquote>
+
+    <p>
+      The Blinn-Phong model consists of lighting that involves a linear combination of the ambient, diffuse, and specular lighting of a scene. An ambient lighting is a uniform lighting over the scene.
+      The diffuse lighting is the light that is scattered when a ray of light hits an object resulting in a matte appearance; it depends on the angle the light ray hits an object (its surface normal).
+      Specular lighting provides all the shiny details, being dependent on the viewer's angle in addition to the lights angle with the surface normal.
+    </p>
+
+    <div align="middle">
+      <table style="width:100%">
+        <tr align="center">
+          <td>
+              <img src="images/PhongAmbient.png" align="middle" width="400px" />
+              <figcaption>Ambient component only</figcaption>
+              
+          </td>
+          <td>
+              <img src="images/PhongDiffuse.png" align="middle" width="400px" />
+              <figcaption>Diffuse component only</figcaption>
+          </td>
+        </tr>
+        <tr align="center">
+          <td>
+              <img src="images/PhongSpecular.png" align="middle" width="400px" />
+              <figcaption>Specular component only</figcaption>
+          </td>
+          <td>
+              <img src="images/PhongAll.png" align="middle" width="400px" />
+              <figcaption>Complete Blinn-Phong model</figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+      
+    <blockquote><b>
+    Show a screenshot of your texture mapping shader using your own custom texture by modifying the textures in <code>/textures/</code>.
+    </b></blockquote>
+
+    <div align="middle">
+      <img src="images/TextureCloth.png" align="middle" width="100%" />
+      <figcaption>Texture on flat cloth.</figcaption>
+    </div>
+    <div align="middle">
+      <img src="images/Texture.png" align="middle" width="100%" />
+      <figcaption>Texture on cloth on sphere</figcaption>
+    </div>
+
+
+    <blockquote><b>
+    Show a screenshot of bump mapping on the cloth and on the sphere. 
+    Show a screenshot of displacement mapping on the sphere. 
+    Use the same texture for both renders. 
+    You can either provide your own texture or use one of the ones in the textures directory, 
+    BUT choose one that's not the default <code>texture_2.png</code>. 
+    Compare the two approaches and resulting renders in your own words. 
+    Compare how your the two shaders react to the sphere by changing the sphere mesh's coarseness by using <code>-o 16 -a 16</code> and then <code>-o 128 -a 128</code>.
+    </b></blockquote>
+
+    <div align="middle">
+      <table style="width:100%">
+        <tr align="center">
+          <td>
+            <img src="images/t5-bump-mapping-cloth.png" align="middle" width="400vw" />
+            <figcaption>Bump Mapping on the Cloth</figcaption>
+          </td>
+          <td>
+            <img src="images/t5-bump-mapping-sphere.png" align="middle" width="400vw" />
+            <figcaption>Bump Mapping on the Sphere</figcaption>
+          </td>
+          <td>
+            <img src="images/bumpClothSphere.png" align="middle" width="400vw" />
+            <figcaption>Bump Mapping on the Cloth on Sphere</figcaption>
+          </td>
+          <td>
+        </tr>
+        <tr align="center">
+          <td>
+            <img src="images/t5-displacement-mapping-sphere.png" align="middle" width="400vw" />
+            <figcaption>Displacement Mapping on the Sphere</figcaption>
+          </td>
+          <td>
+            <img src="images/t5-displacement-mapping-sphere-2.png" align="middle" width="400vw" />
+            <figcaption>Displacement Mapping on the Sphere (coarser mesh)</figcaption>
+          </td>
+          <td>
+            <img src="images/displacementClothSphere.png" align="middle" width="400vw" />
+            <figcaption>Displacement Mapping on the Cloth on Sphere (coarser mesh)</figcaption>
+          </td>
+          <td>
+        </tr>
+      </table>
+    </div>
+
+    <p>
+      The bump shader only makes changes to the lighting of the scene; it does not affect the geometry in any way. Though, the lighting it does provide gives it the appearance
+      of depth in certain places. Displacement shading on the other hand has a greater effect in the vertices shader as the geometry of the scene is also changed to reflect this depth
+      in addition to the lighting provided in the bump shader. The bump shader only really utilizes the fragment shading while displacement utilizes both fragment and vertices, resulting in
+      actual depth being changed in the scene.
+    </p>
+    <p>
+      The differences between using the <code>-o 16 -a 16</code> and <code>-o 128 -a 128</code> resulted in scenes that looked very similar, but upon closer inspection, it seemed that the geometry of the 
+      higher definition (128) had a more precise geometry displacement of its vertices, having greater detail and variance in the depths, while the 16 version looks more smoothed over, not properly
+      giving distinct depth differences where it should be. This is expected to increase in precision with greater definition.
+    </p>
+
+
+    <blockquote><b>
+    Show a screenshot of your mirror shader on the cloth and on the sphere.
+    </b></blockquote>
+
+    <div align="middle">
+      <table style="width:100%">
+        <tr align="center">
+          <td>
+            <img src="images/t5-mirror-shader-cloth.png" align="middle" width="400vw" />
+            <figcaption>Mirror Shader on the Cloth</figcaption>
+          </td>
+          <td>
+            <img src="images/t5-mirror-shader-sphere.png" align="middle" width="400vw" />
+            <figcaption>Mirror Shader on the Sphere</figcaption>
+          </td>
+          <td>
+            <img src="images/Mirror.png" align="middle" width="400vw" />
+            <figcaption>Mirror Shader on the Cloth on Sphere</figcaption>
+          </td>
+          <td>
+        </tr>
+      </table>
+    </div>
+
+
+    <blockquote><b>
+    Explain what you did in your custom shader, if you made one.
+    </b></blockquote>
+
+    <p>
+      For our custom shader, we implemented Toon Shading, which follows the same principles as our Blinn-Phong model, but instead of having a continuous spectrum of possible lighting, we
+      have it such that there is a limited discrete number of levels. We added a feature where you can adjust the number of levels of this lighting. Below are screenshots of our custom
+      shader. As the number of levels increases, it will approach a lack of granularity and converge to Blinn-Phong.
+    </p>
+
+    <div align="middle">
+      <table style="width:100%">
+        <tr align="center">
+          <td>
+            <img src="images/Custom1.png" align="middle" width="300vw" />
+            <figcaption>Level = 1</figcaption>
+          </td>
+          <td>
+            <img src="images/Custom2.png" align="middle" width="300vw" />
+            <figcaption>Level = 2</figcaption>
+          </td>
+          <td>
+            <img src="images/Custom4.png" align="middle" width="300vw" />
+            <figcaption>Level = 4</figcaption>
+          </td>
+          <td>
+        </tr>
+        <tr align="center">
+          <td>
+            <img src="images/Custom8.png" align="middle" width="300vw" />
+            <figcaption>Level = 8</figcaption>
+          </td>
+          <td>
+            <img src="images/Custom16.png" align="middle" width="300vw" />
+            <figcaption>Level = 16</figcaption>
+          </td>
+          <td>
+            <img src="images/Custom128.png" align="middle" width="300vw" />
+            <figcaption>Level = 128</figcaption>
+          </td>
+          <td>
+        </tr>
+      </table>
+    </div>
+
+
+
+  <h2 align="middle">Contributions</h2>
+  <p>
+    Stefan worked on all of the sections in tandem with William with over the shoulder programming; he also implemented the wind.
+  </p>
+  <br />
+  <p>
+    William worked on all of the sections in tandem with Stefan with over the shoulder programming.
+  </p>
+
+
+
+  <h2 align="middle">Mesh Competition Extra Credit (optional)</h2>
+  <blockquote><b>
+    The final (optional) part for the mesh competition is where you have the opportunity to be creative and individual, 
+    so be sure to provide a good description of what you were going for, what you did, and how you did it.
+  </b></blockquote>
+
+  <p>
+    N/A
+  </p>
+
+
+
+  <h2 align="middle">Extra Credit (optional)</h2>
+    <blockquote><b>
+    If you implemented any additional technical features for the cloth simulation, 
+    clearly describe what you did and provide screenshots that illustrate your work. 
+    If it is an improvement compared to something already existing on the cloth simulation, 
+    compare and contrast them both in words and in images.
+    </b></blockquote>
+
+    <p>
+      We implemented the wind feature by making a force that is dependent on the 'surface normals' near the point mass. These surface normals were calculated using the displacement vectors between the point mass and its immediate neighbors.
+      Below are the results.
+    </p>
+
+    <div align="middle">
+      <table style="width:100%">
+        <tr align="center">
+          <td>
+            <img src="images/Wind1.png" align="middle" width="400vw" />
+            <figcaption>Wind: 1 m/s</figcaption>
+          </td>
+          <td>
+            <img src="images/Wind2.png" align="middle" width="400vw" />
+            <figcaption>Wind: 2 m/s</figcaption>
+          </td>
+          <td>
+        </tr>
+        <tr align="center">
+          <td>
+            <img src="images/Wind4.png" align="middle" width="400vw" />
+            <figcaption>Wind: 4 m/s</figcaption>
+          </td>
+          <td>
+            <img src="images/Wind8.png" align="middle" width="400vw" />
+            <figcaption>Wind: 8 m/s</figcaption>
+          </td>
+          <td>
+            <img src="images/Wind16.png" align="middle" width="400vw" />
+            <figcaption>Wind: 16 m/s</figcaption>
+          </td>
+          <td>
+        </tr>
+      </table>
+    </div>
+
+</body>
 </html>
